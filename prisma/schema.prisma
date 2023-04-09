@@ -1,0 +1,63 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+generator erd {
+  provider = "prisma-erd-generator"
+  output   = "../prisma/ERD.pdf"
+  theme    = "neutral"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model Product {
+  id                String              @id @default(cuid())
+  name              String
+  description       String
+  price             Float               @db.Float
+  stock             Int                 @default(0)
+  image             String              @db.MediumText
+  createdAt         DateTime            @default(now()) @map("created_at")
+  updatedAt         DateTime            @updatedAt @map("updated_at")
+  ShoppingCartItems ShoppingCartItems[]
+
+  @@map("products")
+}
+
+model ShoppingCartItems {
+  id             String       @id @default(cuid())
+  quantityItems  Int          @map("quantity_items")
+  product        Product      @relation(fields: [productId], references: [id])
+  cart           ShoppingCart @relation(fields: [shoppingCartId], references: [id])
+  productId      String
+  shoppingCartId String
+
+  @@map("shopping_cart_items")
+}
+
+model ShoppingCart {
+  id                String              @id @default(cuid())
+  createdAt         DateTime            @default(now()) @map("created_at")
+  updatedAt         DateTime            @updatedAt @map("updated_at")
+  ShoppingCartItems ShoppingCartItems[]
+  user              User                @relation(fields: [userId], references: [id])
+  userId            String              @unique
+
+  @@map("shopping_cart")
+}
+
+model User {
+  id        String        @id @default(cuid())
+  email     String        @unique
+  name      String
+  createdAt DateTime      @default(now()) @map("created_at")
+  updatedAt DateTime      @updatedAt @map("updated_at")
+  password  String
+  cpf       String        @unique(map: "cpf")
+  cart      ShoppingCart?
+
+  @@map("users")
+}
