@@ -115,9 +115,11 @@ var controller = {
     
     try {
       const secret = process.env.SECRET
-
+      const idSalf = await bcrypt.genSalt(12)
+      const idHash = await bcrypt.hash(user.id, idSalf)
+      
       const token = jwt.sign({
-          id: user.id
+          id: idHash
         }, 
         secret
       )
@@ -141,7 +143,7 @@ var controller = {
     if(idParams !== id){
       return res.status(401).json({message: "Acesso negado!"}) 
     }
-
+    
     const user = await prisma.user.findUnique({
       select: {
         id: false,
