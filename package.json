@@ -11,6 +11,7 @@
   "license": "ISC",
   "devDependencies": {
     "@mermaid-js/mermaid-cli": "^10.0.2",
+    "@types/express": "^4.17.17",
     "jest": "^29.5.0",
     "nodemon": "^2.0.22",
     "prisma": "^4.12.0",
