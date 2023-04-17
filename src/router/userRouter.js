@@ -11,4 +11,7 @@ router.get("/:id", authJWT, userController.getById);
 router.post("/register", userController.create);
 
 router.put("/:id", authJWT, userController.updateById);
+
+router.delete("/:id", authJWT, userController.deleteById);
+
 module.exports = router;

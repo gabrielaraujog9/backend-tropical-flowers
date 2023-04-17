@@ -1,8 +1,6 @@
-require("dotenv").config();
 const Prisma = require("@prisma/client");
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcrypt");
-const e = require("express");
 
 const prisma = new Prisma.PrismaClient();
 
@@ -45,6 +43,7 @@ async function valideIfExists({ id, email, cpf }) {
       OR: codition,
     },
   });
+
   if (userEmailVerify.length > 0) {
     return true;
   }
@@ -78,37 +77,53 @@ function decodeToken(token) {
   return jwt.decode(token);
 }
 
+function checkIdOfToken(req) {
+  const authHeader = req.headers["authorization"];
+  const token = authHeader?.split(" ")[1];
+  const objDecode = token ? decodeToken(token) : false;
+
+  if (req.params.id !== objDecode.id || !objDecode) {
+    return false;
+  }
+  return true;
+}
 const controller = {
   getAll: async (req, res) => {
-    const users = await prisma.user.findMany({
-      select: {
-        id: false,
-        password: false,
-        email: true,
-        name: true,
-        createdAt: true,
-        updatedAt: true,
-        cpf: true,
-        cart: true,
-      },
-    });
+    try {
+      const users = await prisma.user.findMany({
+        select: {
+          id: false,
+          password: false,
+          email: true,
+          name: true,
+          createdAt: true,
+          updatedAt: true,
+          cpf: true,
+          cart: true,
+        },
+      });
 
-    return res.status(200).json(users);
+      return res.status(200).json(users);
+    } catch (error) {
+      console.log(error);
+
+      return res.status(500).json({ message: "Erro inesperado no serviço!" });
+    }
   },
   create: async (req, res) => {
     try {
       let user = req.body;
-      const fill = filled(user);
-      if (!fill.filled) {
+      const completedFields = filled(user);
+      if (!completedFields.filled) {
         return res.status(422).json({ message: fill.message });
       }
-      const valide = valideIfExists(user);
+      const valide = await valideIfExists(user);
       if (valide) {
         return res
           .status(409)
           .json({ message: "Usuário com E-mail ou CPF já cadastrado!" });
       }
-      const passHash = await generatePassHash();
+      const passHash = await generatePassHash(user.password);
       await prisma.user.create({
         data: {
           name: user.name,
@@ -128,23 +143,20 @@ const controller = {
     try {
       let { email, password } = req.body;
 
-      const containsEmailAndPassword = containsEmailAndPassword({
+      const containsEmailAndPass = containsEmailAndPassword({
         email,
         password,
       });
-      if (!containsEmailAndPassword.contains) {
-        return res
-          .status(422)
-          .json({ message: containsEmailAndPassword.message });
+      if (!containsEmailAndPass.contains) {
+        return res.status(422).json({ message: containsEmailAndPass.message });
       }
 
-      const valided = valideIfExists({ email });
+      const valided = await valideIfExists({ email });
       if (!valided) {
         return res.status(404).json({ message: "Usuário não encontrado!" });
       }
-      const user = findByEmail(email);
-
-      const passVerify = comparePassword(password, user.password);
+      const user = await findByEmail(email);
+      const passVerify = await comparePassword(password, user.password);
 
       if (!passVerify) {
         return res.status(422).json({ message: "Senha incorreta!" });
@@ -162,68 +174,108 @@ const controller = {
     }
   },
   getById: async (req, res) => {
-    const authHeader = req.headers["authorization"];
-    const token = authHeader?.split(" ")[1];
-    const objDecode = token ? decodeToken(token) : false;
+    try {
+      const verifyToken = checkIdOfToken(req);
+      if (!verifyToken) {
+        return res.status(401).json({ message: "Acesso negado!" });
+      }
 
-    if (req.params.id !== objDecode.id || !objDecode) {
-      return res.status(401).json({ message: "Acesso negado!" });
+      const user = await prisma.user.findUnique({
+        select: {
+          id: false,
+          email: true,
+          name: true,
+          createdAt: true,
+          updatedAt: true,
+          password: false,
+          cpf: true,
+          cart: true,
+        },
+        where: {
+          id: objDecode.id,
+        },
+      });
+
+      return res.status(200).json({ user });
+    } catch (error) {
+      console.log(error);
+
+      return res.status(500).json({ message: "Erro inesperado no serviço!" });
     }
-
-    const user = await prisma.user.findUnique({
-      select: {
-        id: false,
-        email: true,
-        name: true,
-        createdAt: true,
-        updatedAt: true,
-        password: false,
-        cpf: true,
-        cart: true,
-      },
-      where: {
-        id: objDecode.id,
-      },
-    });
-
-    return res.status(200).json({ user });
   },
   updateById: async (req, res) => {
-    const authHeader = req.headers["authorization"];
-    const token = authHeader && authHeader.split(" ")[1];
-    const { id } = jwt.decode(token);
+    try {
+      const verifyToken = checkIdOfToken(req);
+      if (!verifyToken) {
+        return res.status(401).json({ message: "Acesso negado!" });
+      }
 
-    const idParams = req.params.id;
+      const { name, email, cpf, password } = req.body;
 
-    if (idParams !== id) {
-      return res.status(401).json({ message: "Acesso negado!" });
+      const valideEmail = email ? await valideIfExists({ email }) : null;
+      const valideCpf = cpf ? await valideIfExists({ cpf }) : null;
+
+      if (valideEmail != null && valideEmail) {
+        return res
+          .status(409)
+          .json({ message: "Usuário com E-mail já cadastrado!" });
+      }
+      if (valideCpf != null && valideCpf) {
+        return res
+          .status(409)
+          .json({ message: "Usuário com CPF já cadastrado!" });
+      }
+
+      const updateUser = {};
+      if (name) {
+        updateUser.name = name;
+      }
+      if (email) {
+        updateUser.email = email;
+      }
+      if (cpf) {
+        updateUser.cpf = cpf;
+      }
+      if (password) {
+        const passHash = await generatePassHash(password);
+        updateUser.password = passHash;
+      }
+
+      await prisma.user.update({
+        data: updateUser,
+        where: {
+          id: req.params.id,
+        },
+      });
+
+      return res
+        .status(200)
+        .json({ message: "Usuário atualizado com sucesso!" });
+    } catch (error) {
+      console.log(error);
+
+      return res.status(500).json({ message: "Erro inesperado no serviço!" });
     }
+  },
+  deleteById: async (req, res) => {
+    try {
+      const verifyToken = checkIdOfToken(req);
+      if (!verifyToken) {
+        return res.status(401).json({ message: "Acesso negado!" });
+      }
 
-    const userRequest = req.body;
+      await prisma.user.delete({
+        where: {
+          id: req.params.id,
+        },
+      });
 
-    const userCompare = await prisma.user.findUnique({
-      where: {
-        id: id,
-      },
-    });
-    const salt = await bcrypt.genSalt(12);
-    const userUpdate = {
-      name:
-        userCompare.name != userRequest.name
-          ? userRequest.name
-          : userCompare.name,
-      email:
-        userCompare.email != userRequest.email
-          ? userRequest.email
-          : userCompare.email,
-      password: (await bcrypt.compare(
-        userRequest.password,
-        userCompare.password
-      ))
-        ? userCompare.password
-        : await bcrypt.hash(userRequest.password, salt),
-      //cpf:
-    };
+      return res.status(200).json({ message: "Usuário deletado!" });
+    } catch (error) {
+      console.log(error);
+
+      return res.status(500).json({ message: "Erro inesperado no serviço!" });
+    }
   },
 };
 
