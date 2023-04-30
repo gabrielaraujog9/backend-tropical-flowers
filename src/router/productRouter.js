@@ -9,8 +9,8 @@ router.get("/:id", authJWT, productController.getById);
 
 router.post("/register", authJWT, productController.create);
 
-router.put("/:id", authJWT, productController.update);
+router.put("/:id", authJWT, productController.updateById);
 
-router.delete("/:id", authJWT, productController.delete);
+router.delete("/:id", authJWT, productController.deleteById);
 
 module.exports = router;

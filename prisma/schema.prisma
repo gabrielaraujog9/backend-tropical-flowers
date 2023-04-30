@@ -27,13 +27,25 @@ model Product {
   @@map("products")
 }
 
+model Order {
+  id     String              @id @default(cuid())
+  status Int                 @default(0)
+  items  ShoppingCartItems[]
+  User   User?               @relation(fields: [userId], references: [id])
+  userId String?
+  
+  @@map("orders")
+}
+
 model ShoppingCartItems {
   id             String       @id @default(cuid())
   quantityItems  Int          @map("quantity_items")
   product        Product      @relation(fields: [productId], references: [id])
   cart           ShoppingCart @relation(fields: [shoppingCartId], references: [id])
+  order          Order        @relation(fields: [orderId], references: [id])
   productId      String
   shoppingCartId String
+  orderId        String
 
   @@map("shopping_cart_items")
 }
@@ -58,6 +70,7 @@ model User {
   password  String
   cpf       String        @unique(map: "cpf")
   cart      ShoppingCart?
+  order     Order[]
 
   @@map("users")
 }

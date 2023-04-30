@@ -1,6 +1,4 @@
 const Prisma = require("@prisma/client");
-const jwt = require("jsonwebtoken");
-const bcrypt = require("bcrypt");
 
 const prisma = new Prisma.PrismaClient();
 
@@ -74,7 +72,7 @@ const controller = {
   },
   create: async (req, res) => {
     try {
-      let { name, description, price, image, stock } = req.body;
+      const { name, description, price, image, stock } = req.body;
 
       const completedFields = filled({
         name,
@@ -103,8 +101,58 @@ const controller = {
       return res.status(500).json({ message: "Erro inesperado no serviço!" });
     }
   },
-  update: (req, res) => {},
-  delete: (req, res) => {},
+  updateById: async (req, res) => {
+    try {
+      const { name, description, price, image, stock } = req.body;
+
+      const updateProduct = {};
+      if (name) {
+        updateProduct.name = name;
+      }
+      if (description) {
+        updateProduct.description = description;
+      }
+      if (price) {
+        updateProduct.price = price;
+      }
+      if (image) {
+        updateProduct.image = image;
+      }
+      if (stock) {
+        updateProduct.stock = stock;
+      }
+     
+      await prisma.product.update({
+        data: updateProduct,
+        where: {
+          id: req.params.id,
+        },
+      });
+
+      return res
+        .status(200)
+        .json({ message: "Produto atualizado com sucesso!" });
+    } catch (error) {
+      console.log(error);
+
+      return res.status(500).json({ message: "Erro inesperado no serviço!" });
+    }
+  },
+  deleteById: async (req, res) => {
+    try {
+      await prisma.product.delete({
+        where: {
+          id: req.params.id,
+        },
+      });
+
+      return res.status(200).json({ message: "Produto deletado!" });
+    } catch (error) {
+      console.log(error);
+
+      return res.status(500).json({ message: "Erro inesperado no serviço!" });
+    }
+  },
 };
 
 module.exports = controller;
