@@ -81,7 +81,7 @@
     const authHeader = req.headers["authorization"];
     const token = authHeader?.split(" ")[1];
     const objDecode = token ? decodeToken(token) : false;
-
+  
     if (req.params.id !== objDecode.id || !objDecode) {
       return false;
     }
@@ -192,7 +192,7 @@
             cart: true,
           },
           where: {
-            id: objDecode.id,
+            id: req.params.id,
           },
         });
 
