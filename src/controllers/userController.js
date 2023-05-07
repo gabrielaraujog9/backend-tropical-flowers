@@ -115,7 +115,7 @@
         let user = req.body;
         const completedFields = filled(user);
         if (!completedFields.filled) {
-          return res.status(422).json({ message: fill.message });
+          return res.status(422).json({ message: completedFields.message });
         }
         const valide = await valideIfExists(user);
         if (valide) {

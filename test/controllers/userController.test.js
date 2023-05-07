@@ -24,6 +24,15 @@ describe("Métodos da API de Usuários", ()=>{
     expect(res.body.message).toBe("Usuário com E-mail ou CPF já cadastrado!");
   });
 
+  it ("Teste de preenchimento dos campos", async () => {
+    const res = await request(app).post("/users/register").send({      
+      email: "pipipi@gmail.com",
+      cpf: "11122233344",
+      password: "popopo",
+    });
+    expect(res.body.message).toBe("O nome não foi preenchido!")
+  })
+
   afterAll(async () => {
     await prisma.user.delete({
       where: {
